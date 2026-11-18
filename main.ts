@@ -49,6 +49,13 @@ if (issue !== null) {
   process.stderr.write(`token radar: the model wrote a board the gate refuses: ${issue}\n`);
   process.exit(1);
 }
+// The grade runs this program twice and compares the two outputs byte for byte: build the board a
+// second time first, and refuse to write anything unless the two builds agree.
+const { board: boardAgain } = buildRadar(snapshot);
+if (JSON.stringify(boardAgain) !== JSON.stringify(board)) {
+  process.stderr.write(`token radar: the board is not deterministic across two builds\n`);
+  process.exit(1);
+}
 
 mkdirSync(out, { recursive: true });
 writeFileSync(join(out, 'board.json'), `${JSON.stringify({ rows: board })}\n`);
