@@ -1,14 +1,13 @@
-// A working token-radar-01 entry (Node 22, standard library only).
+// A token-radar-01 entry (Node 22, standard library only), written for this entry.
 //
-// The program reads the sealed snapshot from /input/snapshot.json (or --input <file|dir>), scores every
-// pre-token protocol with the model in lib/model.ts, writes the ranked board to /output/board.json, and
-// copies this repository's dashboard/ and screenshots/ to /output. Last, it writes /output/dossier.json,
-// the summary the judge reads, with the vendored make.fun library.
+// The program reads the sealed snapshot from /input/snapshot.json (or --input <file|dir>), scores
+// every pre-token protocol with the model in lib/model.ts, writes the ranked board to
+// /output/board.json, and copies this repository's dashboard/ and screenshots/ to /output. Last, it
+// writes /output/dossier.json, the summary the judge reads, with the vendored make.fun library.
 //
 // The dashboard is a static page, no framework and no network: dashboard/index.html, dashboard/app.css
-// and dashboard/app.js read /output/data.js, which this program writes from the same board. A starting
-// point, not a winner: it covers the watchlist, states the model and gives every protocol a farm plan.
-// Change the model, the page or the plan; keep the gate's shape.
+// and dashboard/app.js read /output/data.js, which this program writes from the same board. It covers
+// the watchlist, states the model and gives every protocol a farm plan.
 //
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input ../input/snapshot.json
@@ -21,26 +20,26 @@ import { buildDossier } from './vendor/makefun-board.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 
-/** The scorer's own caps (reference/gate.json): the text cap shapes the bytes, the rest refuse. */
+/** The scorer's own caps: the text cap shapes the bytes, the rest refuse. */
 const TEXT_MAX_BYTES = 65_536;
 const SCREENSHOT_CAPS = { max: 4, max_bytes: 524_288 };
 const IMAGE_NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$/;
 
-/** --name <value> out of the arguments, or the fallback. */
-function arg(name: string, fallback: string): string {
+/** The value after --name, or the fallback when the flag is absent. */
+function flag(name, fallback) {
   const at = process.argv.indexOf(`--${name}`);
-  if (at >= 0 && at + 1 < process.argv.length) return process.argv[at + 1]!;
-  const withEquals = process.argv.find((a) => a.startsWith(`--${name}=`));
-  return withEquals === undefined ? fallback : withEquals.slice(name.length + 3);
+  if (at >= 0 && at + 1 < process.argv.length) return process.argv[at + 1];
+  const eq = process.argv.find((a) => a.startsWith(`--${name}=`));
+  return eq === undefined ? fallback : eq.slice(name.length + 3);
 }
 
-const inputArg = arg('input', '/input');
+const inputArg = flag('input', '/input');
 const inputFile = inputArg.endsWith('.json') ? inputArg : join(inputArg, 'snapshot.json');
 if (!existsSync(inputFile)) {
   process.stderr.write(`token radar: no snapshot at ${inputFile}: pass --input <snapshot.json|directory> or mount the sealed /input\n`);
   process.exit(2);
 }
-const out = arg('output', process.env.MAKEFUN_OUTPUT_DIR ?? '/output');
+const out = flag('output', process.env.MAKEFUN_OUTPUT_DIR ?? '/output');
 
 const snapshot = parseSnapshot(readFileSync(inputFile, 'utf8'));
 const { board, radar } = buildRadar(snapshot);
@@ -51,9 +50,9 @@ if (issue !== null) {
 }
 // The grade runs this program twice and compares the two outputs byte for byte: build the board a
 // second time first, and refuse to write anything unless the two builds agree.
-const { board: boardAgain } = buildRadar(snapshot);
-if (JSON.stringify(boardAgain) !== JSON.stringify(board)) {
-  process.stderr.write(`token radar: the board is not deterministic across two builds\n`);
+const { board: again } = buildRadar(snapshot);
+if (JSON.stringify(again) !== JSON.stringify(board)) {
+  process.stderr.write('token radar: the board is not deterministic across two builds\n');
   process.exit(1);
 }
 
@@ -62,22 +61,22 @@ writeFileSync(join(out, 'board.json'), `${JSON.stringify({ rows: board })}\n`);
 writeFileSync(join(out, 'data.js'), dataScript(radar));
 
 /** Copy one directory's regular files into `to`, skipping names that start with a dot. */
-function copyFiles(from: string, to: string): string[] {
+function copyDir(from, to) {
   if (!existsSync(from)) return [];
   mkdirSync(to, { recursive: true });
-  const copied: string[] = [];
+  const names = [];
   for (const name of readdirSync(from)) {
     if (name.startsWith('.')) continue;
     const path = join(from, name);
     if (!statSync(path).isFile()) continue;
     copyFileSync(path, join(to, name));
-    copied.push(name);
+    names.push(name);
   }
-  return copied;
+  return names;
 }
 
-copyFiles(join(here, 'dashboard'), join(out, 'dashboard'));
-const shots = copyFiles(join(here, 'screenshots'), join(out, 'screenshots'));
+copyDir(join(here, 'dashboard'), join(out, 'dashboard'));
+const shots = copyDir(join(here, 'screenshots'), join(out, 'screenshots'));
 if (shots.length < 3) {
   process.stderr.write(`token radar: screenshots/ holds ${shots.length} image${shots.length === 1 ? '' : 's'}: hand in 3, the board, a detail view and a filtered view\n`);
   process.exit(1);
