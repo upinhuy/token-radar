@@ -67,6 +67,7 @@ a { color: var(--accent); }
 .strip-row { display: grid; grid-template-columns: 180px 1fr 90px; align-items: center; gap: var(--s3); font-size: 13px; }
 .strip-row span { color: var(--muted); }
 .strip-row b { text-align: right; }
+.strip .bar { width: 100%; }
 
 .controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--s3); padding: var(--s4) 0; border-top: 1px solid var(--border); }
 .field { display: grid; gap: var(--s1); }
